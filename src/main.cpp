@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     // listen
     signal(SIGPIPE, SIG_IGN);
     int sfd = -1;
-    sfd = create_and_bind(port, false);
+    sfd = create_and_bind(addr, port);
     if (listen(sfd, backlog) < 0) {
         perror("listen");
         abort();

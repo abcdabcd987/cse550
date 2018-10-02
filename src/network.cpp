@@ -9,50 +9,34 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <arpa/inet.h>
 #include <netinet/tcp.h>
 
-int create_and_bind(int port, bool reuseport) {
-    struct addrinfo hints;
-    struct addrinfo *result, *rp;
-    int s, sfd;
-    char strport[10];
-    snprintf(strport, 10, "%d", port);
-
-    memset(&hints, 0, sizeof (struct addrinfo));
-    hints.ai_family = AF_UNSPEC;     // Return IPv4 and IPv6 choices
-    hints.ai_socktype = SOCK_STREAM; // We want a TCP socket
-    hints.ai_flags = AI_PASSIVE;     // All interfaces
-
-    s = getaddrinfo(NULL, strport, &hints, &result);
-    if (s != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+int create_and_bind(const char* addr, int port) {
+    int sfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sfd < 0) {
+        perror("socket");
         abort();
     }
 
-    for (rp = result; rp != NULL; rp = rp->ai_next) {
-        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (sfd == -1)
-            continue;
-
-        int optval = 1;
-        if (setsockopt(sfd, SOL_SOCKET, reuseport ? SO_REUSEPORT : SO_REUSEADDR, &optval, sizeof(int)) < 0)
-            continue;
-  
-        s = bind(sfd, rp->ai_addr, rp->ai_addrlen);
-        if (s == 0) {
-            /* We managed to bind successfully! */
-            break;
-        }
-  
-        close(sfd);
-    }
-
-    if (rp == NULL) {
-        fprintf(stderr, "Could not bind\n");
+    int optval = 1;
+    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) < 0) {
+        perror("setsockopt");
         abort();
     }
 
-    freeaddrinfo(result);
+    struct sockaddr_in sockaddr;
+    memset(&sockaddr, 0, sizeof(sockaddr));
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_port = htons(port);
+    inet_pton(AF_INET, addr, &(sockaddr.sin_addr));
+
+    int s = bind(sfd, (struct sockaddr*) &sockaddr, sizeof(sockaddr));
+    if (s < 0) {
+        perror("bind");
+        fprintf(stderr, "could not bind.\n");
+        abort();
+    }
 
     return sfd;
 }
@@ -84,7 +68,6 @@ int accept_connection(int sfd) {
             abort();
         }
     }
-    // fprintf(stderr, "accept  fd=%d\n", infd);
     return infd;
 }
 

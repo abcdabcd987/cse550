@@ -4,7 +4,6 @@
 #include <string>
 #include <memory>
 #include <ostream>
-#include "util.hpp"
 
 enum HTTPMethod {
     HTTP_METHOD_UNKNOWN,

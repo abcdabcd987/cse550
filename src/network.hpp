@@ -1,7 +1,7 @@
 #pragma once
 #include <sys/types.h>
 
-int create_and_bind(int port, bool reuseport);
+int create_and_bind(const char* addr, int port);
 void make_socket_non_blocking(int sfd);
 int accept_connection(int sfd);
 void tcp_cork_on(int fd);

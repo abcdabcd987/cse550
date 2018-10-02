@@ -15,8 +15,24 @@ class WebServer {
         DO_REQUEST_CLOSE
     };
 
+    enum class EventSource {
+        ListenFD = 1,
+        AcceptFD,
+        EventFD
+    };
+
+    struct EventContextBase {
+        EventSource source;
+    };
+
+    struct EventContextAcceptedFD {
+        EventSource source;
+        HTTPRequest req;
+    };
+
     void close_request(HTTPRequest *r);
     DoRequestResult do_request(HTTPRequest *r);
+    bool do_request_accepted_fd(EventContextAcceptedFD *cx);
     void do_request_read(HTTPRequest *r);
     void serve_static(HTTPRequest *r);
     void serve_static_sendfile(HTTPRequest *r);
