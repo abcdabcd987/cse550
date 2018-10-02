@@ -15,16 +15,13 @@ MAIN_SRCS = \
 OBJS = $(subst .cpp,.o,$(SRCS))
 MAIN_OBJS = $(subst .cpp,.o,$(MAIN_SRCS))
 
-.PHONY: all makedir main clean dist-clean
+.PHONY: all main clean dist-clean
 
-all: makedir main
+all: main
 
-makedir:
-	mkdir -p bin
+main: 550server
 
-main: makedir bin/naughttpd
-
-bin/naughttpd: $(OBJS) src/main.o
+550server: $(OBJS) src/main.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 depend: .depend

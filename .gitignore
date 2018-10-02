@@ -3,6 +3,7 @@ core
 bin/
 data/
 .vscode/
+550server
 
 # Created by https://www.gitignore.io/api/c++,macos
 

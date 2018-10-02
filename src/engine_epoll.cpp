@@ -73,7 +73,7 @@ void WebServer::run(int sfd, int backlog, int num_worker) {
                 (events[i].events & EPOLLHUP) ||
                 (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT)))
             {
-                fprintf(stderr, "closing error connection.\n", i);
+                fprintf(stderr, "closing error connection.\n");
                 if (ctx->source == EventSource::AcceptFD) {
                     auto cx = reinterpret_cast<EventContextAcceptedFD*>(ctx);
                     close_request(&cx->req);
