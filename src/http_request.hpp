@@ -1,6 +1,8 @@
 #pragma once
 #include <map>
+#include <vector>
 #include <string>
+#include <memory>
 #include <ostream>
 #include "util.hpp"
 
@@ -21,41 +23,24 @@ struct HTTPRequest {
 
     // parser temporary variables
     int parser_state;
-    std::string parser_method;
-    ci_string parser_hdr_key;
-    std::string parser_hdr_value;
 
     // request info
-    HTTPMethod method;
-    std::string uri; // uri = request_path + "?" + query_string + "#" + fragment
-    std::string request_path;
-    std::string query_string;
-    std::string fragment;
-    unsigned short http_version_major;
-    unsigned short http_version_minor;
-    std::map<ci_string, std::string> headers;
-    std::string body;
-    bool keep_alive;
+    std::string uri;
 
     // engine data
     int fd_socket;
-    union EngineData {
-        int fd_epoll;
-    };
-    EngineData ngdata;
+    int fd_epoll;
 
     // do_request() internal variables
     int do_request_state;
-    int srcfd;
+    std::shared_ptr<std::vector<char>> cached_content;
     size_t file_size;
     size_t writen;
     off_t offset;
     size_t readn;
-    void *srcaddr;
 
     // funcs
     HTTPRequest();
-    ~HTTPRequest();
     void clear();
 };
 

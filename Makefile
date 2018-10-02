@@ -1,53 +1,30 @@
-CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11 -pthread -O3
+CXXFLAGS += -Isrc/ -Itest/ -g -std=c++11 -pthread #-O3
 LDFLAGS  += -g
 
 SRCS = \
-	src/cmdopts.cpp \
+	src/disk_io.cpp \
 	src/engine_epoll.cpp \
-	src/engine_fork.cpp \
-	src/engine_naive.cpp \
-	src/engine_poll.cpp \
-	src/engine_pool.cpp \
-	src/engine_select.cpp \
-	src/engine_thread.cpp \
-	src/engine_wrapper_reuseport.cpp \
-	src/engine_wrapper_thread.cpp \
 	src/http.cpp \
 	src/http_request.cpp \
 	src/network.cpp \
-	src/parser.cpp \
-	src/threadpool.cpp \
+	src/parser.cpp
 
 MAIN_SRCS = \
 	src/main.cpp \
 
-TEST_SRCS = \
-	test/test_parser.cpp \
-
-TEST_MAIN_SRCS = \
-	test/test_all.cpp
-
 OBJS = $(subst .cpp,.o,$(SRCS))
 MAIN_OBJS = $(subst .cpp,.o,$(MAIN_SRCS))
-TEST_OBJS = $(subst .cpp,.o,$(TEST_SRCS))
-TEST_MAIN_OBJS = $(subst .cpp,.o,$(TEST_MAIN_SRCS))
 
-.PHONY: all makedir main test clean dist-clean
+.PHONY: all makedir main clean dist-clean
 
-all: makedir main test
+all: makedir main
 
 makedir:
 	mkdir -p bin
 
-main: makedir bin/naughttpd bin/test_all
-
-test: main
-	bin/test_all
+main: makedir bin/naughttpd
 
 bin/naughttpd: $(OBJS) src/main.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-bin/test_all: $(OBJS) $(TEST_OBJS) test/test_all.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 depend: .depend
@@ -56,7 +33,7 @@ depend: .depend
 	$(CXX) $(CXXFLAGS) -MM $^ >> ./.depend
 
 clean:
-	rm -f $(OBJS) $(TEST_OBJS)
+	rm -f $(OBJS)
 
 dist-clean: clean
 	rm -f *~ .depend
