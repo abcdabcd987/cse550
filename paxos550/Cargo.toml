@@ -1,0 +1,8 @@
+[package]
+name = "paxos550"
+version = "0.1.0"
+authors = ["Lequn Chen <chenlequn22@gmail.com>"]
+
+[dependencies]
+rand = "0.5.5"
+error-chain = "0.12.0"
