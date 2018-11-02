@@ -3,17 +3,15 @@ use rand;
 pub type NodeID = String;  // TODO: maybe consider &str?
 pub type InstanceID = usize;
 
-#[derive(Clone, PartialOrd, PartialEq)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct ProposalID(u64, u64, NodeID);
 
 pub struct PrepareMessage {
-    pub instance_id: InstanceID,
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
 pub struct PromiseMessage<T> {
-    pub instance_id: InstanceID,
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
     pub last_accepted_proposal_id: ProposalID,
@@ -21,26 +19,22 @@ pub struct PromiseMessage<T> {
 }
 
 pub struct ProposeMessage<T> {
-    pub instance_id: InstanceID,
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
     pub value: T,
 }
 
 pub struct AcceptedMessage {
-    pub instance_id: InstanceID,
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
 pub struct LearnValueMessage {
-    pub instance_id: InstanceID,
     pub learner_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
 pub struct ValueMessage<T> {
-    pub instance_id: InstanceID,
     pub value: T,
 }
 
