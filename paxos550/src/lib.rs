@@ -2,6 +2,7 @@ extern crate rand;
 #[macro_use] extern crate error_chain;
 
 mod paxos;
+mod locker;
 
 pub mod errors {
     error_chain! {

@@ -1,7 +1,6 @@
 use super::common::*;
-use errors::*;
 
-struct Acceptor<T> {
+pub struct Acceptor<T> {
     acceptor_id: NodeID,
     highest_promised_proposal_id: ProposalID,
     highest_accepted_proposal_id: ProposalID,

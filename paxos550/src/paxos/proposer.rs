@@ -1,5 +1,4 @@
 use super::common::*;
-use errors::*;
 use std::collections::HashSet;
 
 pub struct Proposer<T> {
@@ -24,26 +23,25 @@ impl<T: Clone> Proposer<T> {
         }
     }
 
-    pub fn observe_proposal(&mut self, proposal_id: &ProposalID) -> Result<()> {
+    pub fn observe_proposal(&mut self, proposal_id: &ProposalID) {
         if *proposal_id > self.highest_proposal_id {
             self.highest_proposal_id = proposal_id.clone();
         }
-        Ok(())
     }
 
-    pub fn prepare(&mut self) -> Result<PrepareMessage> {
+    pub fn prepare(&mut self) -> PrepareMessage {
         self.proposal_id = ProposalID::new(self.highest_proposal_id.round() + 1,
                                            self.proposer_id.clone());
         self.highest_proposal_id = self.proposal_id.clone();
         self.received_promises.clear();
-        Ok(PrepareMessage {
+        PrepareMessage {
             proposer_id: self.proposer_id.clone(),
             proposal_id: self.proposal_id.clone()
-        })
+        }
     }
 
-    pub fn receive_promise(&mut self, promise: &PromiseMessage<T>) -> Result<Message<T>> {
-        self.observe_proposal(&promise.proposal_id)?;
+    pub fn receive_promise(&mut self, promise: &PromiseMessage<T>) -> Option<ProposeMessage<T>> {
+        self.observe_proposal(&promise.proposal_id);
         if self.proposal_id == promise.proposal_id && !self.received_promises.contains(&promise.acceptor_id) {
             self.received_promises.insert(promise.acceptor_id.clone());
             if promise.last_accepted_proposal_id > self.highest_proposal_id {
@@ -53,18 +51,27 @@ impl<T: Clone> Proposer<T> {
                 }
             }
             if self.received_promises.len() >= self.majority_size {
-                return Ok(Message::Propose(ProposeMessage {
+                return Some(ProposeMessage {
                     proposer_id: self.proposer_id.clone(),
                     proposal_id: self.proposal_id.clone(),
-                    value: self.value.clone().ok_or_else(|| "value is not set")?
-                }))
+                    value: self.value.as_ref().expect("assert has value").clone()
+                })
             }
         }
-        Ok(Message::None)
+        None
     }
 
-    pub fn set_value(&mut self, instance_id: InstanceID, value: T) -> Result<()> {
+    pub fn set_value(&mut self, value: T) {
         self.value = Some(value);
-        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type T = String;
+    fn construct_proposer() -> Proposer<T> {
+        Proposer::new(String::from("proposer_1"), 2)
     }
 }

@@ -2,7 +2,7 @@ use super::common::*;
 use errors::*;
 use std::collections::HashMap;
 
-struct Learner<T> {
+pub struct Learner<T> {
     learner_id: NodeID,
     majority_size: usize,
     proposal_accept_count: HashMap<ProposalID, usize>,
@@ -41,15 +41,22 @@ impl<T: Clone> Learner<T> {
         }
     }
 
-    pub fn learn_value(&mut self) -> Result<LearnValueMessage> {
+    pub fn learn_value(&mut self) -> Result<LearnMessage> {
         if self.chosen_proposal_id.round() == 0 {
             Err("has not reached consensus yet".into())
         } else {
-            Ok(LearnValueMessage {
+            Ok(LearnMessage {
                 learner_id: self.learner_id.clone(),
                 proposal_id: self.chosen_proposal_id.clone()
             })
         }
+    }
+
+    pub fn receive_learn(&mut self, learn: &LearnMessage) -> Option<ValueMessage<T>> {
+        self.chosen_value.as_ref().map(|v| ValueMessage {
+            learner_id: self.learner_id.clone(),
+            value: v.clone()
+        })
     }
 
     pub fn receive_value(&mut self, value: &ValueMessage<T>) {

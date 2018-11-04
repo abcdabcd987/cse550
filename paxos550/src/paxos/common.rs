@@ -6,11 +6,13 @@ pub type InstanceID = usize;
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct ProposalID(u64, u64, NodeID);
 
+#[derive(Clone)]
 pub struct PrepareMessage {
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
+#[derive(Clone)]
 pub struct PromiseMessage<T> {
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
@@ -18,34 +20,51 @@ pub struct PromiseMessage<T> {
     pub last_accepted_value: Option<T>,
 }
 
+#[derive(Clone)]
 pub struct ProposeMessage<T> {
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
     pub value: T,
 }
 
+#[derive(Clone)]
 pub struct AcceptedMessage {
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-pub struct LearnValueMessage {
+#[derive(Clone)]
+pub struct LearnMessage {
     pub learner_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
+#[derive(Clone)]
 pub struct ValueMessage<T> {
+    pub learner_id: NodeID,
     pub value: T,
 }
 
-pub enum Message<T> {
-    None,
+#[derive(Clone)]
+pub enum MessageTarget {
+    Broadcast,
+    Node(NodeID)
+}
+
+#[derive(Clone)]
+pub enum MessagePayload<T> {
     Prepare(PrepareMessage),
     Promise(PromiseMessage<T>),
     Propose(ProposeMessage<T>),
     Accepted(AcceptedMessage),
-    LearnValue(LearnValueMessage),
+    Learn(LearnMessage),
     Value(ValueMessage<T>),
+}
+
+#[derive(Clone)]
+pub struct Message<T> {
+    pub target: MessageTarget,
+    pub payload: MessagePayload<T>,
 }
 
 impl ProposalID {
