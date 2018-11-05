@@ -1,5 +1,4 @@
 use super::common::*;
-use super::instance::PaxosInstance;
 use errors::*;
 use std::collections::HashMap;
 
@@ -63,14 +62,20 @@ impl<T: Clone> Learner<T> {
         }
     }
 
-    pub fn receive_learn(&mut self, learn: &LearnMessage) -> Option<ValueMessage<T>> {
+    pub fn receive_learn(&mut self, _learn: &LearnMessage) -> Option<ValueMessage<T>> {
         self.chosen_value.as_ref().map(|v| ValueMessage {
             learner_id: self.learner_id.clone(),
             value: v.clone()
         })
     }
 
-    pub fn receive_value(&mut self, value: &ValueMessage<T>) {
-        self.chosen_value = Some(value.value.clone());
+    /// Returns `Some` if this is the first time the learner learns the value.
+    pub fn receive_value(&mut self, value: &ValueMessage<T>) -> Option<&T> {
+        if self.chosen_value.is_some() {
+            None
+        } else {
+            self.chosen_value = Some(value.value.clone());
+            self.chosen_value.as_ref()
+        }
     }
 }

@@ -9,12 +9,9 @@ use std::collections::VecDeque;
 use std::time::Duration;
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::cell::RefCell;
 
 pub struct PaxosInstance<T> {
-    node_id: NodeID,
     instance_id: InstanceID,
-    cluster_size: usize,
     timeout: Duration,
     messages_to_send: VecDeque<message::MessageInfo<T>>,
 
@@ -25,11 +22,9 @@ pub struct PaxosInstance<T> {
 }
 
 impl<T: Clone + Hash + Eq> PaxosInstance<T> {
-    pub fn new(node_id: &NodeID, instance_id: InstanceID, cluster_size: usize, timeout: Duration) -> PaxosInstance<T> {
+    pub fn new(node_id: NodeID, instance_id: InstanceID, cluster_size: usize, timeout: Duration) -> PaxosInstance<T> {
         PaxosInstance {
-            node_id: node_id.clone(),
             instance_id,
-            cluster_size,
             timeout,
             messages_to_send: VecDeque::new(),
             proposer: Proposer::new(instance_id, node_id.clone(), cluster_size),
@@ -77,7 +72,8 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
         self.send_message(msg, message::MessageTarget::Broadcast, Some(timeout));
     }
 
-    pub fn receive_message(&mut self, message: &PaxosInstanceMessage<T>) {
+    /// Returns `Some` if this is the first time the learner learns the value.
+    pub fn receive_message(&mut self, message: &PaxosInstanceMessage<T>) -> Option<&T> {
         match *message {
             PaxosInstanceMessage::Prepare(ref prepare) => {
                 self.proposer.observe_proposal(&prepare.proposal_id);
@@ -127,7 +123,7 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
                 if let Some(m) = self.learner.receive_learn(learn) {
                     let msg = PaxosInstanceMessage::Value(m);
                     let timeout = Some(self.timeout);
-                    self.send_message(msg, message::MessageTarget::Broadcast, timeout);
+                    self.send_message(msg, message::MessageTarget::Node(learn.learner_id.clone()), timeout);
                 }
             },
             PaxosInstanceMessage::Value(ref value) => {
@@ -137,9 +133,10 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
                     _ => true
                 });
 
-                self.learner.receive_value(value);
+                return self.learner.receive_value(value)
             },
         }
+        None
     }
 
     pub fn on_timeout(&mut self, message: PaxosInstanceMessage<T>, timeout: Duration) -> Result<()> {
