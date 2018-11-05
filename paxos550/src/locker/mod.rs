@@ -3,32 +3,34 @@ use std::vec::Vec;
 use std::cmp::Eq;
 use std::hash::Hash;
 
-#[derive(Clone)]
-pub enum Operation<K, V> {
-    Lock(K, V),
-    Unlock(K)
+use paxos::NodeID;
+
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Operation {
+    Lock(String, NodeID),
+    Unlock(String)
 }
 
-#[derive(Clone)]
-pub struct LogEntry<K, V> {
-    op: Operation<K, V>,
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LogEntry {
+    op: Operation,
     valid: bool,
 }
 
-pub struct Locker<K, V> {
-    locks: HashMap<K, V>,
-    log: Vec<LogEntry<K, V>>
+pub struct Locker {
+    locks: HashMap<String, NodeID>,
+    log: Vec<LogEntry>
 }
 
-impl<K: Hash + Eq + Clone, V: Clone> Locker<K, V> {
-    pub fn new() -> Locker<K, V> {
+impl Locker {
+    pub fn new() -> Locker {
         Locker {
             locks: HashMap::new(),
             log: Vec::new()
         }
     }
 
-    pub fn append_log(&mut self, op: Operation<K, V>) {
+    pub fn append_log(&mut self, op: Operation) {
         let valid = match op {
             Operation::Lock(ref key, ref value) => {
                 if !self.locks.contains_key(key) {
@@ -39,17 +41,17 @@ impl<K: Hash + Eq + Clone, V: Clone> Locker<K, V> {
                 }
             },
             Operation::Unlock(ref key) => {
-                self.locks.remove(&key).is_some()
+                self.locks.remove(key).is_some()
             },
         };
         self.log.push(LogEntry { op, valid });
     }
 
-    pub fn log(&self) -> &Vec<LogEntry<K, V>> {
+    pub fn log(&self) -> &Vec<LogEntry> {
         &self.log
     }
 
-    pub fn locks(&self) -> &HashMap<K, V> {
+    pub fn locks(&self) -> &HashMap<String, NodeID> {
         &self.locks
     }
 }

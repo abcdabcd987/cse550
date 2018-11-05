@@ -3,16 +3,16 @@ use rand;
 pub type NodeID = String;  // TODO: maybe consider &str?
 pub type InstanceID = usize;
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ProposalID(u64, u64, NodeID);
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct PrepareMessage {
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct PromiseMessage<T> {
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
@@ -20,39 +20,33 @@ pub struct PromiseMessage<T> {
     pub last_accepted_value: Option<T>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ProposeMessage<T> {
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
     pub value: T,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct AcceptedMessage {
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LearnMessage {
     pub learner_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ValueMessage<T> {
     pub learner_id: NodeID,
     pub value: T,
 }
 
-#[derive(Clone)]
-pub enum MessageTarget {
-    Broadcast,
-    Node(NodeID)
-}
-
-#[derive(Clone)]
-pub enum MessagePayload<T> {
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum PaxosInstanceMessage<T> {
     Prepare(PrepareMessage),
     Promise(PromiseMessage<T>),
     Propose(ProposeMessage<T>),
@@ -61,10 +55,10 @@ pub enum MessagePayload<T> {
     Value(ValueMessage<T>),
 }
 
-#[derive(Clone)]
-pub struct Message<T> {
-    pub target: MessageTarget,
-    pub payload: MessagePayload<T>,
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PaxosMessage<T> {
+    pub instance_id: InstanceID,
+    pub message: PaxosInstanceMessage<T>,
 }
 
 impl ProposalID {

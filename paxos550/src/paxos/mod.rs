@@ -8,3 +8,4 @@ pub use self::common::*;
 pub use self::proposer::Proposer;
 pub use self::acceptor::Acceptor;
 pub use self::learner::Learner;
+pub use self::instance::PaxosInstance;

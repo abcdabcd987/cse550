@@ -1,6 +1,7 @@
 use super::common::*;
 
 pub struct Acceptor<T> {
+    _instance_id: InstanceID,
     acceptor_id: NodeID,
     highest_promised_proposal_id: ProposalID,
     highest_accepted_proposal_id: ProposalID,
@@ -8,9 +9,10 @@ pub struct Acceptor<T> {
 }
 
 impl<T: Clone> Acceptor<T> {
-    pub fn new(acceptor_id: NodeID) -> Acceptor<T> {
+    pub fn new(instance_id: InstanceID, acceptor_id: NodeID) -> Acceptor<T> {
         let highest_accepted_proposal_id = ProposalID::new(0, acceptor_id.clone());
         Acceptor {
+            _instance_id: instance_id,
             acceptor_id,
             highest_promised_proposal_id: highest_accepted_proposal_id.clone(),
             highest_accepted_proposal_id,

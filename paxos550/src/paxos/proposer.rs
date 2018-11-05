@@ -2,6 +2,7 @@ use super::common::*;
 use std::collections::HashSet;
 
 pub struct Proposer<T> {
+    _instance_id: InstanceID,
     proposer_id: NodeID,
     majority_size: usize,
     proposal_id: ProposalID,
@@ -11,9 +12,10 @@ pub struct Proposer<T> {
 }
 
 impl<T: Clone> Proposer<T> {
-    pub fn new(proposer_id: NodeID, cluster_size: usize) -> Proposer<T> {
+    pub fn new(instance_id: InstanceID, proposer_id: NodeID, cluster_size: usize) -> Proposer<T> {
         let highest_proposal_id = ProposalID::new(0, proposer_id.clone());
         Proposer {
+            _instance_id: instance_id,
             proposer_id,
             majority_size: (cluster_size + 1) / 2,
             proposal_id: highest_proposal_id.clone(),
@@ -72,6 +74,6 @@ mod tests {
 
     type T = String;
     fn construct_proposer() -> Proposer<T> {
-        Proposer::new(String::from("proposer_1"), 2)
+        Proposer::new(0, String::from("proposer_1"), 2)
     }
 }
