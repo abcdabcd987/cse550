@@ -38,6 +38,7 @@ pub struct Server {
     messages_to_send: VecDeque<MessageInfo<locker::Operation>>,
     paxos: Vec<PaxosInstance<locker::Operation>>,
     locker: locker::Locker,
+    next_log_to_apply: usize,
 }
 
 static mut GLOBAL_SERVER: *mut Server = ptr::null_mut();
@@ -83,7 +84,8 @@ impl Server {
             buf: [0u8; MAX_UDP_SIZE],
             messages_to_send: VecDeque::new(),
             paxos: vec![empty_instance],
-            locker: locker::Locker::new()
+            locker: locker::Locker::new(),
+            next_log_to_apply: 1
         }
     }
 
@@ -172,12 +174,24 @@ impl Server {
                 }
 
                 // handle the message
-                let instance = &mut self.paxos[msg.instance_id];
-                if let Some(v) = instance.receive_message(&msg.message) {
-                    // update the locker when the learner learns the value for the first time
-                    self.locker.append_log(&v);  // FIXME hole
+                let apply_log;
+                {
+                    let instance = &mut self.paxos[msg.instance_id];
+                    apply_log = instance.receive_message(&msg.message).is_some();
+                    instance.collect_messages_to_send(&mut self.messages_to_send);
                 }
-                instance.collect_messages_to_send(&mut self.messages_to_send);
+
+                // update the locker when the learner learns the value for the first time
+                if apply_log {
+                    let total_instances = self.paxos.len() - 1;
+                    while self.next_log_to_apply <= total_instances {
+                        let inst = &mut self.paxos[self.next_log_to_apply];
+                        if let Some(v) = inst.value() {
+                            self.locker.append_log(&v);
+                        }
+                        self.next_log_to_apply += 1;
+                    }
+                }
             },
             MessagePayload::LockerMessage(op) => {
                 let instance_id = self.paxos.len();

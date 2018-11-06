@@ -21,6 +21,7 @@ pub struct PaxosInstance<T> {
     acceptor: Acceptor<T>,
     learner: Learner<T>,
     waiting_reply: HashSet<PaxosInstanceMessage<T>>,
+    value: Option<T>,
 }
 
 impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
@@ -33,7 +34,8 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
             proposer: Proposer::new(instance_id, node_id.clone(), cluster_size),
             acceptor: Acceptor::new(instance_id, node_id.clone()),
             learner: Learner::new(instance_id, node_id.clone(), cluster_size),
-            waiting_reply: HashSet::new()
+            waiting_reply: HashSet::new(),
+            value: None
         }
     }
 
@@ -68,6 +70,10 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         self.proposer.set_value(value);
         let timeout = self.timeout;  // need NLL
         self.do_prepare(timeout);
+    }
+
+    pub fn value(&mut self) -> Option<&T> {
+        self.value.as_ref()
     }
 
     pub fn learn_final_consensus(&mut self) {
@@ -125,6 +131,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                     if let Some(v) = self.acceptor.value() {
                         // if the acceptor accepted the proposal, directly set the value.
                         self.learner.set_chosen_value(v.clone());
+                        self.value = Some(v.clone());
                         return Some(v.clone());
                     } else {
                         // otherwise, ask other nodes for the answer.
