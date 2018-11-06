@@ -3,16 +3,16 @@ use rand;
 pub type NodeID = String;  // TODO: maybe consider &str?
 pub type InstanceID = usize;
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct ProposalID(u64, u64, NodeID);
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct PrepareMessage {
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct PromiseMessage<T> {
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
@@ -20,32 +20,32 @@ pub struct PromiseMessage<T> {
     pub last_accepted_value: Option<T>,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct ProposeMessage<T> {
     pub proposer_id: NodeID,
     pub proposal_id: ProposalID,
     pub value: T,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct AcceptedMessage {
     pub acceptor_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct LearnMessage {
     pub learner_id: NodeID,
     pub proposal_id: ProposalID,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct ValueMessage<T> {
     pub learner_id: NodeID,
     pub value: T,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum PaxosInstanceMessage<T> {
     Prepare(PrepareMessage),
     Promise(PromiseMessage<T>),
@@ -55,7 +55,7 @@ pub enum PaxosInstanceMessage<T> {
     Value(ValueMessage<T>),
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct PaxosMessage<T> {
     pub instance_id: InstanceID,
     pub message: PaxosInstanceMessage<T>,

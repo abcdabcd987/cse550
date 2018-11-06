@@ -1,6 +1,8 @@
 #[macro_use] extern crate clap;
 extern crate serde_yaml;
 extern crate rand;
+#[macro_use] extern crate log;
+extern crate env_logger;
 extern crate paxos550;
 
 use paxos550::message::*;
@@ -16,6 +18,10 @@ use std::io;
 use std::io::Write;
 
 fn main() {
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Debug)
+        .init();
+
     let matches = App::new("Paxos550 Lock Service Client")
         .version(crate_version!())
         .author(crate_authors!())
@@ -60,49 +66,54 @@ fn main() {
         if args.is_empty() {
             continue;
         }
-        let send = |msg| {
+        let send = |msg, server: Option<&&str>| {
             let data = serde_yaml::to_vec(&msg).unwrap();
-            let (_, addr) = rand::thread_rng().choose(&servers_vec).unwrap();
-            if let Err(e) = socket.send_to(&data, addr) {
-                println!("error: {}", e);
+            let name = if let Some(name) = server {
+                *name
+            } else {
+                let (name, _) = rand::thread_rng().choose(&servers_vec).unwrap();
+                name.as_str()
+            };
+            match servers.get(name) {
+                None => println!("cannot find server {}", name),
+                Some(addr) => {
+                    debug!("sent to {}: {:?}", addr, msg);
+                    if let Err(e) = socket.send_to(&data, addr) {
+                        println!("error: {}", e);
+                    }
+                },
             }
         };
         match args[0] {
             "LOCK" => {
-                if args.len() != 2 {
-                    println!("usage: LOCK <key>");
+                let key = if let Some(&key) = args.get(1) {
+                    key
+                } else {
+                    println!("usage: LOCK <key> [server]");
                     continue;
-                }
-                let key = args[1];
+                };
                 let msg: MessagePayload<Operation> = MessagePayload::LockerMessage(
                     Operation::Lock(key.into(), node_id.into()));
-                send(msg);
+                send(msg, args.get(2));
             },
             "UNLOCK" => {
-                if args.len() != 2 {
-                    println!("usage: UNLOCK <key>");
+                let key = if let Some(&key) = args.get(1) {
+                    key
+                } else {
+                    println!("usage: UNLOCK <key> [server]");
                     continue;
-                }
-                let key = args[1];
+                };
                 let msg: MessagePayload<Operation> = MessagePayload::LockerMessage(
                     Operation::Unlock(key.into(), node_id.into()));
-                send(msg);
+                send(msg, args.get(2));
             },
             "LOG" => {
-                if args.len() != 1 {
-                    println!("usage: LOG");
-                    continue;
-                }
                 let msg: MessagePayload<Operation> = MessagePayload::DebugPrintLog;
-                send(msg);
+                send(msg, args.get(1));
             },
             "LOCKS" => {
-                if args.len() != 1 {
-                    println!("usage: LOCKS");
-                    continue;
-                }
                 let msg: MessagePayload<Operation> = MessagePayload::DebugPrintLocks;
-                send(msg);
+                send(msg, args.get(1));
             },
             _ => {
                 println!("unknown command: {:?}", args);

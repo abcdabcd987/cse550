@@ -9,8 +9,10 @@ use std::collections::VecDeque;
 use std::time::Duration;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::fmt::Debug;
 
 pub struct PaxosInstance<T> {
+    node_id: NodeID,
     instance_id: InstanceID,
     timeout: Duration,
     messages_to_send: VecDeque<message::MessageInfo<T>>,
@@ -21,9 +23,10 @@ pub struct PaxosInstance<T> {
     waiting_reply: HashSet<PaxosInstanceMessage<T>>,
 }
 
-impl<T: Clone + Hash + Eq> PaxosInstance<T> {
+impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
     pub fn new(node_id: NodeID, instance_id: InstanceID, cluster_size: usize, timeout: Duration) -> PaxosInstance<T> {
         PaxosInstance {
+            node_id: node_id.clone(),  // FIXME remove clone()
             instance_id,
             timeout,
             messages_to_send: VecDeque::new(),
@@ -34,9 +37,9 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
         }
     }
 
-    pub fn collect_messages_to_send(&mut self, global: &mut VecDeque<message::MessageInfo<T>>) {
+    pub fn collect_messages_to_send(&mut self, collector: &mut VecDeque<message::MessageInfo<T>>) {
         // TODO ugly. fixme.
-        global.append(&mut self.messages_to_send);
+        collector.append(&mut self.messages_to_send);
     }
 
     fn send_message(&mut self, message: PaxosInstanceMessage<T>, target: message::MessageTarget,
@@ -65,6 +68,10 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
         self.proposer.set_value(value);
         let timeout = self.timeout;  // need NLL
         self.do_prepare(timeout);
+    }
+
+    pub fn learn_final_consensus(&mut self) {
+        // TODO
     }
 
     fn do_prepare(&mut self, timeout: Duration) {
@@ -109,21 +116,27 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
                 if let Some(m) = self.learner.receive_accepted(accepted) {
                     // if got Accepted from the majority, clear the Promise timeout
                     self.waiting_reply.retain(|msg| match *msg {
-                        PaxosInstanceMessage::Promise(ref promise) =>
-                            promise.proposal_id != accepted.proposal_id,
+                        PaxosInstanceMessage::Propose(ref propose) =>
+                            propose.proposal_id != accepted.proposal_id,
                         _ => true
                     });
 
-                    let msg = PaxosInstanceMessage::Learn(m);
-                    let timeout = Some(self.timeout);
-                    self.send_message(msg, message::MessageTarget::Broadcast, timeout);
+                    if accepted.acceptor_id == self.node_id {
+                        // if accepted by self, directly set the value.
+                        self.learner.set_chosen_value(self.acceptor.value().clone());
+                        return self.acceptor.value().as_ref();
+                    } else {
+                        // ask other nodes for the answer.
+                        let msg = PaxosInstanceMessage::Learn(m);
+                        let timeout = Some(self.timeout);
+                        self.send_message(msg, message::MessageTarget::Broadcast, timeout);
+                    }
                 }
             },
             PaxosInstanceMessage::Learn(ref learn) => {
                 if let Some(m) = self.learner.receive_learn(learn) {
                     let msg = PaxosInstanceMessage::Value(m);
-                    let timeout = Some(self.timeout);
-                    self.send_message(msg, message::MessageTarget::Node(learn.learner_id.clone()), timeout);
+                    self.send_message(msg, message::MessageTarget::Node(learn.learner_id.clone()), None);
                 }
             },
             PaxosInstanceMessage::Value(ref value) => {
@@ -143,6 +156,7 @@ impl<T: Clone + Hash + Eq> PaxosInstance<T> {
         if !self.waiting_reply.remove(&message) {
             return Ok(());
         }
+        debug!("timeout {:?} {:?}", timeout, message);
         let new_timeout = self.backoff_timeout(timeout);
         match message {
             PaxosInstanceMessage::Prepare(..) |

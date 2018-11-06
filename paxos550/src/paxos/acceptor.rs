@@ -35,7 +35,7 @@ impl<T: Clone> Acceptor<T> {
     }
 
     pub fn receive_propose(&mut self, propose: &ProposeMessage<T>) -> Option<AcceptedMessage> {
-        if propose.proposal_id > self.highest_promised_proposal_id {
+        if propose.proposal_id >= self.highest_promised_proposal_id {
             self.highest_promised_proposal_id = propose.proposal_id.clone();
             self.highest_accepted_proposal_id = propose.proposal_id.clone();
             self.value = Some(propose.value.clone());
@@ -46,5 +46,9 @@ impl<T: Clone> Acceptor<T> {
         } else {
             None
         }
+    }
+
+    pub fn value(&self) -> &Option<T> {
+        &self.value
     }
 }

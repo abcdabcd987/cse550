@@ -69,6 +69,10 @@ impl<T: Clone> Learner<T> {
         })
     }
 
+    pub fn set_chosen_value(&mut self, value: Option<T>) {
+        self.chosen_value = value;
+    }
+
     /// Returns `Some` if this is the first time the learner learns the value.
     pub fn receive_value(&mut self, value: &ValueMessage<T>) -> Option<&T> {
         if self.chosen_value.is_some() {

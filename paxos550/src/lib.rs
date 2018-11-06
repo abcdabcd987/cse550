@@ -3,7 +3,7 @@ extern crate tokio;
 #[macro_use] extern crate error_chain;
 #[macro_use] extern crate serde_derive;
 extern crate serde_yaml;
-extern crate core;
+#[macro_use] extern crate log;
 
 pub mod paxos;
 pub mod locker;
