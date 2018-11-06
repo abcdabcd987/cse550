@@ -40,7 +40,7 @@ impl<T: Clone> Learner<T> {
         self.acceptor_highest_proposal_id.insert(accepted.acceptor_id.clone(), accepted.proposal_id.clone());
         let count = self.proposal_accept_count.entry(accepted.proposal_id.clone()).or_insert(0);
         *count += 1;
-        if *count >= self.majority_size {
+        if *count == self.majority_size {
             self.chosen_proposal_id = accepted.proposal_id.clone();
             Some(LearnMessage {
                 learner_id: self.learner_id.clone(),
@@ -69,17 +69,17 @@ impl<T: Clone> Learner<T> {
         })
     }
 
-    pub fn set_chosen_value(&mut self, value: Option<T>) {
-        self.chosen_value = value;
+    pub fn set_chosen_value(&mut self, value: T) {
+        self.chosen_value = Some(value);
     }
 
     /// Returns `Some` if this is the first time the learner learns the value.
-    pub fn receive_value(&mut self, value: &ValueMessage<T>) -> Option<&T> {
+    pub fn receive_value(&mut self, value: &ValueMessage<T>) -> Option<T> {  // FIXME should be Option<&T>
         if self.chosen_value.is_some() {
             None
         } else {
             self.chosen_value = Some(value.value.clone());
-            self.chosen_value.as_ref()
+            self.chosen_value.clone()
         }
     }
 }

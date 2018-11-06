@@ -6,8 +6,8 @@ use std::time::Duration;
 pub enum MessagePayload<T> {
     PaxosMessage(paxos::PaxosMessage<T>),
     LockerMessage(locker::Operation),
-    DebugPrintLog,
-    DebugPrintLocks,
+    PrintLog,
+    PrintLocks,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

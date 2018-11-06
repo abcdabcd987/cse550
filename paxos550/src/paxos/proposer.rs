@@ -52,7 +52,7 @@ impl<T: Clone> Proposer<T> {
                     self.value = promise.last_accepted_value.clone();
                 }
             }
-            if self.received_promises.len() >= self.majority_size {
+            if self.received_promises.len() == self.majority_size {
                 return Some(ProposeMessage {
                     proposer_id: self.proposer_id.clone(),
                     proposal_id: self.proposal_id.clone(),
@@ -65,15 +65,5 @@ impl<T: Clone> Proposer<T> {
 
     pub fn set_value(&mut self, value: T) {
         self.value = Some(value);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    type T = String;
-    fn construct_proposer() -> Proposer<T> {
-        Proposer::new(0, String::from("proposer_1"), 2)
     }
 }

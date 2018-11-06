@@ -50,8 +50,13 @@ fn on_timeout(msg: PaxosMessage<locker::Operation>, timeout: Duration) -> Result
         instance.on_timeout(msg.message, timeout)?;
         instance.collect_messages_to_send(&mut server.messages_to_send);
     }
-    server.send_messages()?;
-    Ok(())
+    loop {
+        match server.send_messages() {
+            Ok(Async::Ready(())) => (),
+            Ok(Async::NotReady) => return Ok(()),
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 pub unsafe fn set_global_server(server: &mut Server) {
@@ -99,6 +104,7 @@ impl Server {
     }
 
     pub fn send_messages(&mut self) -> Poll<(), Error> {
+        let mut not_ready = true;
         let mut retry_queue = VecDeque::new();
         let now = Instant::now();
         while let Some(message) = self.messages_to_send.pop_front() {
@@ -125,9 +131,11 @@ impl Server {
             // setup timeout trigger
             self.setup_timeout_trigger(now, message.clone());
 
+            debug!("send message to {}: {:?}", target_name, message.payload);
+
             // send messages to self
             if *target_name == self.node_id {
-                self.receive_message(message.payload)?;
+                self.receive_message(message.payload, "127.0.0.1:1234".parse().unwrap())?;  // FIXME don't need addr here
                 continue;  // process the next message
             }
 
@@ -136,7 +144,7 @@ impl Server {
             let addr = self.peers.get(&target_name)
                 .ok_or_else(|| Error::from("cannot find the peer"))?;
             match self.socket.poll_send_to(&data, addr) {
-                Ok(Async::Ready(_)) => return Ok(Async::Ready(())),  // FIXME write can be incomplete
+                Ok(Async::Ready(_)) => not_ready = false,  // FIXME write can be incomplete
                 Ok(Async::NotReady) => {
                     retry_queue.push_back(message.clone()); // FIXME clone() ugly.
                 },
@@ -146,11 +154,11 @@ impl Server {
 
         // add back messages to retry
         self.messages_to_send.append(&mut retry_queue);
-        Ok(Async::NotReady)
+        Ok(if not_ready { Async::NotReady } else { Async::Ready(()) })
     }
 
-    fn receive_message(&mut self, message: MessagePayload<locker::Operation>) -> Poll<(), Error> {
-        debug!("got message: {:?}", message);
+    fn receive_message(&mut self, message: MessagePayload<locker::Operation>, addr: SocketAddr) -> Poll<(), Error> {
+        debug!("got message from {}: {:?}", addr, message);
         match message {
             MessagePayload::PaxosMessage(ref msg) => {
                 // create all the missing instances
@@ -167,7 +175,7 @@ impl Server {
                 let instance = &mut self.paxos[msg.instance_id];
                 if let Some(v) = instance.receive_message(&msg.message) {
                     // update the locker when the learner learns the value for the first time
-                    self.locker.append_log(v);  // FIXME hole
+                    self.locker.append_log(&v);  // FIXME hole
                 }
                 instance.collect_messages_to_send(&mut self.messages_to_send);
             },
@@ -179,11 +187,22 @@ impl Server {
                 instance.collect_messages_to_send(&mut self.messages_to_send);
                 self.paxos.push(instance);
             },
-            MessagePayload::DebugPrintLog => {
-                info!("Current log\n{:#?}", self.locker.log());
-            },
-            MessagePayload::DebugPrintLocks => {
-                info!("Current locks\n{:#?}", self.locker.locks());
+            MessagePayload::PrintLog => {
+                // FIXME unify send message
+                let data = serde_yaml::to_vec(self.locker.log())?;
+                match self.socket.poll_send_to(&data, &addr) {
+                    Ok(Async::Ready(_)) => return Ok(Async::Ready(())),  // FIXME write can be incomplete
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Err(e) => return Err(e.into()),
+                }
+            }
+            MessagePayload::PrintLocks => {
+                let data = serde_yaml::to_vec(self.locker.locks())?;
+                match self.socket.poll_send_to(&data, &addr) {
+                    Ok(Async::Ready(_)) => return Ok(Async::Ready(())),  // FIXME write can be incomplete
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Err(e) => return Err(e.into()),
+                }
             }
         }
         Ok(Async::Ready(()))
@@ -202,21 +221,27 @@ impl Future for Server {
         debug!("poll");
         loop {
             debug!("poll > send");
+            let mut not_ready = true;
+
             // try to send.
             match self.send_messages() {
-                Ok(Async::Ready(())) => (),
+                Ok(Async::Ready(())) => not_ready = false,
                 Ok(Async::NotReady) => (),
                 Err(e) => return Err(e)
             }
 
             debug!("poll > receive");
             // send is not ready. try to receive.
-            let (size, _addr) = try_ready!(self.socket.poll_recv_from(&mut self.buf));  // FIXME read can be incomplete
+            let (size, addr) = try_ready!(self.socket.poll_recv_from(&mut self.buf));  // FIXME read can be incomplete
             let message: MessagePayload<locker::Operation> = serde_yaml::from_slice(&self.buf[..size])?;
-            match self.receive_message(message) {
-                Ok(Async::Ready(())) => (),
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
+            match self.receive_message(message, addr) {
+                Ok(Async::Ready(())) => not_ready = false,
+                Ok(Async::NotReady) => (),
                 Err(e) => return Err(e)
+            }
+
+            if not_ready {
+                return Ok(Async::NotReady);
             }
         }
     }

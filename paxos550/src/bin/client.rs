@@ -6,7 +6,8 @@ extern crate env_logger;
 extern crate paxos550;
 
 use paxos550::message::*;
-use paxos550::locker::Operation;
+use paxos550::paxos::NodeID;
+use paxos550::locker::{Operation, LogEntry};
 
 use clap::{Arg, App};
 use rand::Rng;
@@ -51,8 +52,9 @@ fn main() {
 //    let local_addr: SocketAddr = "0.0.0.0:0".parse().unwrap();
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
     let mut command = String::new();
+    let mut buf = [0u8; 8192];
     loop {
-        print!("> ");
+        print!("{}> ", node_id);
         io::stdout().flush().unwrap();
         command.clear();
         if let Err(e) = io::stdin().read_line(&mut command) {
@@ -75,7 +77,10 @@ fn main() {
                 name.as_str()
             };
             match servers.get(name) {
-                None => println!("cannot find server {}", name),
+                None => {
+                    println!("cannot find server {}", name);
+                    return false;
+                },
                 Some(addr) => {
                     debug!("sent to {}: {:?}", addr, msg);
                     if let Err(e) = socket.send_to(&data, addr) {
@@ -83,6 +88,7 @@ fn main() {
                     }
                 },
             }
+            return true;
         };
         match args[0] {
             "LOCK" => {
@@ -108,12 +114,56 @@ fn main() {
                 send(msg, args.get(2));
             },
             "LOG" => {
-                let msg: MessagePayload<Operation> = MessagePayload::DebugPrintLog;
-                send(msg, args.get(1));
+                let msg: MessagePayload<Operation> = MessagePayload::PrintLog;
+                if !send(msg, args.get(1)) {
+                    continue;
+                }
+                let mut len = 0;
+                loop {
+                    match socket.recv_from(&mut buf[len..]) {
+                        Ok((size, addr)) => {
+                            len += size;
+                            let data: Result<Vec<LogEntry>, _> = serde_yaml::from_slice(&buf);
+                            if let Ok(res) = data {
+                                println!("Log from {}:", addr);
+                                for entry in &res {
+                                    println!("{:?}", entry);
+                                }
+                                break;
+                            }
+                        },
+                        Err(e) => {
+                            println!("error: {}", e);
+                            break;
+                        },
+                    }
+                }
             },
             "LOCKS" => {
-                let msg: MessagePayload<Operation> = MessagePayload::DebugPrintLocks;
-                send(msg, args.get(1));
+                let msg: MessagePayload<Operation> = MessagePayload::PrintLocks;
+                if !send(msg, args.get(1)) {
+                    continue;
+                }
+                let mut len = 0;
+                loop {
+                    match socket.recv_from(&mut buf[len..]) {
+                        Ok((size, addr)) => {
+                            len += size;
+                            let data: Result<HashMap<String, NodeID>, _> = serde_yaml::from_slice(&buf[..len]);
+                            if let Ok(res) = data {
+                                println!("Locks from {}:", addr);
+                                for (key, node) in &res {
+                                    println!("{}\t=>\t{}", key, node);
+                                }
+                                break;
+                            }
+                        },
+                        Err(e) => {
+                            println!("error: {}", e);
+                            break;
+                        },
+                    }
+                }
             },
             _ => {
                 println!("unknown command: {:?}", args);

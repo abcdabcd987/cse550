@@ -12,7 +12,7 @@ use std::hash::Hash;
 use std::fmt::Debug;
 
 pub struct PaxosInstance<T> {
-    node_id: NodeID,
+    _node_id: NodeID,
     instance_id: InstanceID,
     timeout: Duration,
     messages_to_send: VecDeque<message::MessageInfo<T>>,
@@ -26,7 +26,7 @@ pub struct PaxosInstance<T> {
 impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
     pub fn new(node_id: NodeID, instance_id: InstanceID, cluster_size: usize, timeout: Duration) -> PaxosInstance<T> {
         PaxosInstance {
-            node_id: node_id.clone(),  // FIXME remove clone()
+            _node_id: node_id.clone(),  // FIXME remove clone()
             instance_id,
             timeout,
             messages_to_send: VecDeque::new(),
@@ -80,7 +80,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
     }
 
     /// Returns `Some` if this is the first time the learner learns the value.
-    pub fn receive_message(&mut self, message: &PaxosInstanceMessage<T>) -> Option<&T> {
+    pub fn receive_message(&mut self, message: &PaxosInstanceMessage<T>) -> Option<T> {  // FIXME should return Option<&T>
         match *message {
             PaxosInstanceMessage::Prepare(ref prepare) => {
                 self.proposer.observe_proposal(&prepare.proposal_id);
@@ -121,12 +121,13 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                         _ => true
                     });
 
-                    if accepted.acceptor_id == self.node_id {
-                        // if accepted by self, directly set the value.
-                        self.learner.set_chosen_value(self.acceptor.value().clone());
-                        return self.acceptor.value().as_ref();
+//                    if self.acceptor.highest_accepted_proposal_id() == accepted.proposal_id
+                    if let Some(v) = self.acceptor.value() {
+                        // if the acceptor accepted the proposal, directly set the value.
+                        self.learner.set_chosen_value(v.clone());
+                        return Some(v.clone());
                     } else {
-                        // ask other nodes for the answer.
+                        // otherwise, ask other nodes for the answer.
                         let msg = PaxosInstanceMessage::Learn(m);
                         let timeout = Some(self.timeout);
                         self.send_message(msg, message::MessageTarget::Broadcast, timeout);
@@ -146,7 +147,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                     _ => true
                 });
 
-                return self.learner.receive_value(value)
+                return self.learner.receive_value(value);
             },
         }
         None
@@ -156,12 +157,14 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         if !self.waiting_reply.remove(&message) {
             return Ok(());
         }
-        debug!("timeout {:?} {:?}", timeout, message);
+        debug!("instance {} timeout {:?} {:?}", self.instance_id, timeout, message);
         let new_timeout = self.backoff_timeout(timeout);
         match message {
             PaxosInstanceMessage::Prepare(..) |
             PaxosInstanceMessage::Propose(..) => {
-                self.do_prepare(new_timeout);
+                if self.acceptor.value().is_none() {
+                    self.do_prepare(new_timeout);
+                }
             },
             PaxosInstanceMessage::Promise(..) |
             PaxosInstanceMessage::Accepted(..) |

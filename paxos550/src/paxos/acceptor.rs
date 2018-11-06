@@ -48,7 +48,11 @@ impl<T: Clone> Acceptor<T> {
         }
     }
 
-    pub fn value(&self) -> &Option<T> {
-        &self.value
+    pub fn value(&self) -> Option<T> {  // FIXME should be Option<&T>
+        self.value.clone()
+    }
+
+    pub fn highest_accepted_proposal_id(&self) -> ProposalID {
+        self.highest_accepted_proposal_id.clone()
     }
 }
