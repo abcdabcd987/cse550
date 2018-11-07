@@ -146,7 +146,11 @@ impl Server {
             let addr = self.peers.get(&target_name)
                 .ok_or_else(|| Error::from("cannot find the peer"))?;
             match self.socket.poll_send_to(&data, addr) {
-                Ok(Async::Ready(_)) => not_ready = false,  // FIXME write can be incomplete
+                Ok(Async::Ready(size)) => {
+                    // FIXME write can be incomplete
+                    assert_eq!(size, data.len());
+                    not_ready = false
+                },
                 Ok(Async::NotReady) => {
                     retry_queue.push_back(message.clone()); // FIXME clone() ugly.
                 },
@@ -247,7 +251,7 @@ impl Future for Server {
             debug!("poll > receive");
             // send is not ready. try to receive.
             let (size, addr) = try_ready!(self.socket.poll_recv_from(&mut self.buf));  // FIXME read can be incomplete
-            let message: MessagePayload<locker::Operation> = serde_yaml::from_slice(&self.buf[..size])?;
+            let message: MessagePayload<locker::Operation> = serde_yaml::from_slice(&self.buf[..size]).unwrap();
             match self.receive_message(message, addr) {
                 Ok(Async::Ready(())) => not_ready = false,
                 Ok(Async::NotReady) => (),

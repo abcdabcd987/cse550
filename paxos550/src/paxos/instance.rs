@@ -21,7 +21,7 @@ pub struct PaxosInstance<T> {
     acceptor: Acceptor<T>,
     learner: Learner<T>,
     waiting_reply: HashSet<PaxosInstanceMessage<T>>,
-    value: Option<T>,
+    value: Option<T>,  // TODO make the canonical copy only exists once (either in Instance, or the  three component)
 }
 
 impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
@@ -127,7 +127,6 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                         _ => true
                     });
 
-//                    if self.acceptor.highest_accepted_proposal_id() == accepted.proposal_id
                     if let Some(v) = self.acceptor.value() {
                         // if the acceptor accepted the proposal, directly set the value.
                         self.learner.set_chosen_value(v.clone());
@@ -169,7 +168,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         match message {
             PaxosInstanceMessage::Prepare(..) |
             PaxosInstanceMessage::Propose(..) => {
-                if self.acceptor.value().is_none() {
+                if self.value().is_none() {
                     self.do_prepare(new_timeout);
                 }
             },
