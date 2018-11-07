@@ -12,7 +12,7 @@ use std::hash::Hash;
 use std::fmt::Debug;
 
 pub struct PaxosInstance<T> {
-    _node_id: NodeID,
+    node_id: NodeID,
     instance_id: InstanceID,
     timeout: Duration,
     messages_to_send: VecDeque<message::MessageInfo<T>>,
@@ -27,7 +27,7 @@ pub struct PaxosInstance<T> {
 impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
     pub fn new(node_id: NodeID, instance_id: InstanceID, cluster_size: usize, timeout: Duration) -> PaxosInstance<T> {
         PaxosInstance {
-            _node_id: node_id.clone(),  // FIXME remove clone()
+            node_id: node_id.clone(),  // FIXME remove clone()
             instance_id,
             timeout,
             messages_to_send: VecDeque::new(),
@@ -76,9 +76,13 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         self.value.as_ref()
     }
 
-    pub fn learn_final_consensus(&mut self) {
-        // TODO
-    }
+//    pub fn start_recovery(&mut self) {
+//        let msg = PaxosInstanceMessage::Recovery(RecoveryMessage {
+//            node_id: self.node_id.clone()
+//        });
+//        let timeout = Some(self.timeout);
+//        self.send_message(msg, message::MessageTarget::Broadcast, timeout);
+//    }
 
     fn do_prepare(&mut self, timeout: Duration) {
         let msg = PaxosInstanceMessage::Prepare(self.proposer.prepare());
@@ -131,6 +135,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                         // if the acceptor accepted the proposal, directly set the value.
                         self.learner.set_chosen_value(v.clone());
                         self.value = Some(v.clone());
+                        self.acceptor.set_reached_consensus();
                         return Some(v.clone());
                     } else {
                         // otherwise, ask other nodes for the answer.
@@ -153,8 +158,29 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                     _ => true
                 });
 
+                self.value = Some(value.chosen_value.clone());
+                self.acceptor.set_reached_consensus();
                 return self.learner.receive_value(value);
             },
+//            PaxosInstanceMessage::Recovery(ref recovery) => {
+//                if let Some(v) = self.value.clone() {  // FIXME clone()
+//                    let msg = PaxosInstanceMessage::Consensus(ConsensusMessage {
+//                        node_id: self.node_id.clone(),
+//                        proposal_id: self.acceptor.highest_accepted_proposal_id(),
+//                        value: v,
+//                    });
+//                    self.send_message(msg, message::MessageTarget::Node(recovery.node_id.clone()), None);
+//                }
+//            },
+//            PaxosInstanceMessage::Consensus(ref consensus) => {
+//                if self.value.is_none() {
+//                    self.value = Some(consensus.value.clone());
+//                    self.proposer.receive_consensus(consensus);
+//                    self.acceptor.receive_consensus(consensus);
+//                    self.learner.receive_consensus(consensus);
+//                    return self.value.clone();
+//                }
+//            }
         }
         None
     }
@@ -168,19 +194,26 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         match message {
             PaxosInstanceMessage::Prepare(..) |
             PaxosInstanceMessage::Propose(..) => {
-                if self.value().is_none() {
+                if self.value.is_none() {
                     self.do_prepare(new_timeout);
                 }
             },
             PaxosInstanceMessage::Promise(..) |
             PaxosInstanceMessage::Accepted(..) |
-            PaxosInstanceMessage::Value(_) => {
+//            PaxosInstanceMessage::Consensus(..) |
+            PaxosInstanceMessage::Value(..) => {
                 return Err("this message shouldn't wait for reply".into());
             },
-            PaxosInstanceMessage::Learn(_) => {
+            PaxosInstanceMessage::Learn(..) => {
                 // send the Learn message again
                 self.send_message(message, message::MessageTarget::Broadcast, Some(new_timeout));
             },
+//            PaxosInstanceMessage::Recovery(..) => {
+//                if self.value.is_none() {
+//                    // send the Recovery message again
+//                    self.send_message(message, message::MessageTarget::Broadcast, Some(new_timeout));
+//                }
+//            },
         }
         Ok(())
     }

@@ -19,7 +19,7 @@ done
 
 PREFIX=$(random_string)
 
-for i in `seq 1 10`; do
+for i in `seq 1 20`; do
     echo LOCK concurrent-$PREFIX-$i | ../target/debug/client --id client$i $ARGS > /dev/null 2>&1 &
 done
 

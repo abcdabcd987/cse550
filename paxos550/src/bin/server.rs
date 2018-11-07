@@ -137,7 +137,7 @@ impl Server {
 
             // send messages to self
             if *target_name == self.node_id {
-                self.receive_message(message.payload, "127.0.0.1:1234".parse().unwrap())?;  // FIXME don't need addr here
+                self.receive_message(message.payload, "0.0.0.0:0".parse().unwrap())?;  // FIXME don't need addr here
                 continue;  // process the next message
             }
 
@@ -172,8 +172,6 @@ impl Server {
                 for instance_id in next_instance_id ..= msg.instance_id {
                     let mut instance = PaxosInstance::new(
                         self.node_id.clone(), instance_id, self.peers.len(), DEFAULT_TIMEOUT);
-                    instance.learn_final_consensus();
-                    instance.collect_messages_to_send(&mut self.messages_to_send);
                     self.paxos.push(instance);
                 }
 
@@ -181,7 +179,13 @@ impl Server {
                 let apply_log;
                 {
                     let instance = &mut self.paxos[msg.instance_id];
-                    apply_log = instance.receive_message(&msg.message).is_some();
+                    match instance.receive_message(&msg.message) {
+                        None => apply_log = false,
+                        Some(v) => {
+                            apply_log = true;
+                            info!("Reached consensus on Instance {}: {:?}", msg.instance_id, v);
+                        },
+                    }
                     instance.collect_messages_to_send(&mut self.messages_to_send);
                 }
 
@@ -191,9 +195,12 @@ impl Server {
                     while self.next_log_to_apply <= total_instances {
                         let inst = &mut self.paxos[self.next_log_to_apply];
                         if let Some(v) = inst.value() {
+                            info!("Applying the log of Instance {}: {:?}", self.next_log_to_apply, v);
                             self.locker.append_log(&v);
+                            self.next_log_to_apply += 1;
+                        } else {
+                            break;
                         }
-                        self.next_log_to_apply += 1;
                     }
                 }
             },
@@ -213,9 +220,18 @@ impl Server {
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
                     Err(e) => return Err(e.into()),
                 }
-            }
+            },
             MessagePayload::PrintLocks => {
                 let data = serde_yaml::to_vec(self.locker.locks())?;
+                match self.socket.poll_send_to(&data, &addr) {
+                    Ok(Async::Ready(_)) => return Ok(Async::Ready(())),  // FIXME write can be incomplete
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Err(e) => return Err(e.into()),
+                }
+            },
+            MessagePayload::PrintTotalInstances => {
+                let total_instances = self.paxos.len() - 1;
+                let data = serde_yaml::to_vec(&total_instances)?;
                 match self.socket.poll_send_to(&data, &addr) {
                     Ok(Async::Ready(_)) => return Ok(Async::Ready(())),  // FIXME write can be incomplete
                     Ok(Async::NotReady) => return Ok(Async::NotReady),

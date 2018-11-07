@@ -3,13 +3,25 @@
 cd "$(dirname "$0")"
 SESSION=paxos550_server
 
+if [[ $# -ne 1 ]] ; then
+    echo "USAGE: $0 NUMBER_OF_SERVERS"
+    exit 0
+fi
+
 tmux new-session -d -s $SESSION -x 165 -y 60
-tmux split-window -v -d -t $SESSION
-tmux split-window -v -d -t $SESSION
-tmux select-layout -t $SESSION even-vertical
+for i in `seq 2 $1`; do
+    tmux split-window -v -d -t $SESSION
+done
+tmux select-layout -t $SESSION tiled
 
-tmux send-keys -t $SESSION.0 "../target/debug/server --id server1 --listen 0.0.0.0:9001 --peer server2=127.0.0.1:9002 --peer server3=127.0.0.1:9003" C-m
-tmux send-keys -t $SESSION.1 "../target/debug/server --id server2 --listen 0.0.0.0:9002 --peer server1=127.0.0.1:9001 --peer server3=127.0.0.1:9003" C-m
-tmux send-keys -t $SESSION.2 "../target/debug/server --id server3 --listen 0.0.0.0:9003 --peer server1=127.0.0.1:9001 --peer server2=127.0.0.1:9002" C-m
+for i in `seq 1 $1`; do
+    ARGS="--id server$i --listen 0.0.0.0:$(( 9000 + $i ))"
+    for j in `seq 1 $1`; do
+        if [[ $i -ne $j ]]; then
+            ARGS="$ARGS --peer server$j=127.0.0.1:$(( 9000 + $j ))"
+        fi
+    done
+    tmux send-keys -t $SESSION.$(( i - 1 )) "../target/debug/server $ARGS" C-m
+done
 
-tmux $1 attach -t $SESSION
+tmux attach -t $SESSION

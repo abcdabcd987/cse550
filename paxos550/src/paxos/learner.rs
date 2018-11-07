@@ -44,7 +44,6 @@ impl<T: Clone> Learner<T> {
             self.chosen_proposal_id = accepted.proposal_id.clone();
             Some(LearnMessage {
                 learner_id: self.learner_id.clone(),
-                proposal_id: self.chosen_proposal_id.clone()
             })
         } else {
             None
@@ -57,7 +56,6 @@ impl<T: Clone> Learner<T> {
         } else {
             Ok(LearnMessage {
                 learner_id: self.learner_id.clone(),
-                proposal_id: self.chosen_proposal_id.clone()
             })
         }
     }
@@ -65,7 +63,8 @@ impl<T: Clone> Learner<T> {
     pub fn receive_learn(&mut self, _learn: &LearnMessage) -> Option<ValueMessage<T>> {
         self.chosen_value.as_ref().map(|v| ValueMessage {
             learner_id: self.learner_id.clone(),
-            value: v.clone()
+            chosen_proposal_id: self.chosen_proposal_id.clone(),
+            chosen_value: v.clone()
         })
     }
 
@@ -78,8 +77,13 @@ impl<T: Clone> Learner<T> {
         if self.chosen_value.is_some() {
             None
         } else {
-            self.chosen_value = Some(value.value.clone());
+            self.chosen_value = Some(value.chosen_value.clone());
             self.chosen_value.clone()
         }
     }
+
+//    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
+//        self.chosen_proposal_id = consensus.proposal_id.clone();
+//        self.chosen_value = Some(consensus.value.clone());
+//    }
 }

@@ -8,6 +8,7 @@ pub enum MessagePayload<T> {
     LockerMessage(locker::Operation),
     PrintLog,
     PrintLocks,
+    PrintTotalInstances,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

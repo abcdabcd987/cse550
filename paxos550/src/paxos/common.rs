@@ -36,14 +36,26 @@ pub struct AcceptedMessage {
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct LearnMessage {
     pub learner_id: NodeID,
-    pub proposal_id: ProposalID,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct ValueMessage<T> {
     pub learner_id: NodeID,
-    pub value: T,
+    pub chosen_proposal_id: ProposalID,
+    pub chosen_value: T,
 }
+
+//#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+//pub struct RecoveryMessage {  // not in the paxos paper
+//    pub node_id: NodeID,
+//}
+//
+//#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+//pub struct ConsensusMessage<T> {  // not in the paxos paper
+//    pub node_id: NodeID,
+//    pub proposal_id: ProposalID,
+//    pub value: T,
+//}
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum PaxosInstanceMessage<T> {
@@ -53,6 +65,8 @@ pub enum PaxosInstanceMessage<T> {
     Accepted(AcceptedMessage),
     Learn(LearnMessage),
     Value(ValueMessage<T>),
+//    Recovery(RecoveryMessage),
+//    Consensus(ConsensusMessage<T>),
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]

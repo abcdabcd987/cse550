@@ -66,4 +66,9 @@ impl<T: Clone> Proposer<T> {
     pub fn set_value(&mut self, value: T) {
         self.value = Some(value);
     }
+
+//    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
+//        self.observe_proposal(&consensus.proposal_id);
+//        self.set_value(consensus.value.clone());
+//    }
 }
