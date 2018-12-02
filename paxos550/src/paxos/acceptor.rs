@@ -18,7 +18,7 @@ impl<T: Clone + Eq> Acceptor<T> {
             highest_promised_proposal_id: highest_accepted_proposal_id.clone(),
             highest_accepted_proposal_id,
             value: None,
-            reached_consensus: false
+            reached_consensus: false,
         }
     }
 
@@ -29,7 +29,7 @@ impl<T: Clone + Eq> Acceptor<T> {
                 acceptor_id: self.acceptor_id.clone(),
                 proposal_id: prepare.proposal_id.clone(),
                 last_accepted_proposal_id: self.highest_accepted_proposal_id.clone(),
-                last_accepted_value: self.value.clone()
+                last_accepted_value: self.value.clone(),
             })
         } else {
             None
@@ -38,20 +38,22 @@ impl<T: Clone + Eq> Acceptor<T> {
 
     pub fn receive_propose(&mut self, propose: &ProposeMessage<T>) -> Option<AcceptedMessage> {
         if propose.proposal_id >= self.highest_promised_proposal_id
-            && (!self.reached_consensus || self.value.as_ref().unwrap() == &propose.value) {
+            && (!self.reached_consensus || self.value.as_ref().unwrap() == &propose.value)
+        {
             self.highest_promised_proposal_id = propose.proposal_id.clone();
             self.highest_accepted_proposal_id = propose.proposal_id.clone();
             self.value = Some(propose.value.clone());
             Some(AcceptedMessage {
                 acceptor_id: self.acceptor_id.clone(),
-                proposal_id: propose.proposal_id.clone()
+                proposal_id: propose.proposal_id.clone(),
             })
         } else {
             None
         }
     }
 
-    pub fn value(&self) -> Option<T> {  // FIXME should be Option<&T>
+    pub fn value(&self) -> Option<T> {
+        // FIXME should be Option<&T>
         self.value.clone()
     }
 
@@ -63,10 +65,10 @@ impl<T: Clone + Eq> Acceptor<T> {
         self.reached_consensus = true;
     }
 
-//    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
-//        self.highest_promised_proposal_id = consensus.proposal_id.clone();
-//        self.highest_accepted_proposal_id = consensus.proposal_id.clone();
-//        self.value = Some(consensus.value.clone());
-//        self.set_reached_consensus();
-//    }
+    //    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
+    //        self.highest_promised_proposal_id = consensus.proposal_id.clone();
+    //        self.highest_accepted_proposal_id = consensus.proposal_id.clone();
+    //        self.value = Some(consensus.value.clone());
+    //        self.set_reached_consensus();
+    //    }
 }

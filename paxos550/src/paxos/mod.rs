@@ -1,11 +1,11 @@
-mod common;
-mod proposer;
 mod acceptor;
-mod learner;
+mod common;
 mod instance;
+mod learner;
+mod proposer;
 
-pub use self::common::*;
-pub use self::proposer::Proposer;
 pub use self::acceptor::Acceptor;
-pub use self::learner::Learner;
+pub use self::common::*;
 pub use self::instance::PaxosInstance;
+pub use self::learner::Learner;
+pub use self::proposer::Proposer;

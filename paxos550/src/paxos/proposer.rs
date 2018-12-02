@@ -21,7 +21,7 @@ impl<T: Clone> Proposer<T> {
             proposal_id: highest_proposal_id.clone(),
             highest_proposal_id,
             received_promises: HashSet::new(),
-            value: None
+            value: None,
         }
     }
 
@@ -32,19 +32,23 @@ impl<T: Clone> Proposer<T> {
     }
 
     pub fn prepare(&mut self) -> PrepareMessage {
-        self.proposal_id = ProposalID::new(self.highest_proposal_id.round() + 1,
-                                           self.proposer_id.clone());
+        self.proposal_id = ProposalID::new(
+            self.highest_proposal_id.round() + 1,
+            self.proposer_id.clone(),
+        );
         self.highest_proposal_id = self.proposal_id.clone();
         self.received_promises.clear();
         PrepareMessage {
             proposer_id: self.proposer_id.clone(),
-            proposal_id: self.proposal_id.clone()
+            proposal_id: self.proposal_id.clone(),
         }
     }
 
     pub fn receive_promise(&mut self, promise: &PromiseMessage<T>) -> Option<ProposeMessage<T>> {
         self.observe_proposal(&promise.proposal_id);
-        if self.proposal_id == promise.proposal_id && !self.received_promises.contains(&promise.acceptor_id) {
+        if self.proposal_id == promise.proposal_id
+            && !self.received_promises.contains(&promise.acceptor_id)
+        {
             self.received_promises.insert(promise.acceptor_id.clone());
             if promise.last_accepted_proposal_id > self.highest_proposal_id {
                 self.highest_proposal_id = promise.last_accepted_proposal_id.clone();
@@ -56,8 +60,8 @@ impl<T: Clone> Proposer<T> {
                 return Some(ProposeMessage {
                     proposer_id: self.proposer_id.clone(),
                     proposal_id: self.proposal_id.clone(),
-                    value: self.value.as_ref().expect("assert has value").clone()
-                })
+                    value: self.value.as_ref().expect("assert has value").clone(),
+                });
             }
         }
         None
@@ -67,8 +71,8 @@ impl<T: Clone> Proposer<T> {
         self.value = Some(value);
     }
 
-//    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
-//        self.observe_proposal(&consensus.proposal_id);
-//        self.set_value(consensus.value.clone());
-//    }
+    //    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
+    //        self.observe_proposal(&consensus.proposal_id);
+    //        self.set_value(consensus.value.clone());
+    //    }
 }

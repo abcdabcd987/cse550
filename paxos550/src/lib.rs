@@ -1,13 +1,16 @@
 extern crate rand;
 extern crate tokio;
-#[macro_use] extern crate error_chain;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate error_chain;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_yaml;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
-pub mod paxos;
 pub mod locker;
 pub mod network;
+pub mod paxos;
 
 pub mod errors {
     use serde_yaml;

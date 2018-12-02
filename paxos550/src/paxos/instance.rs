@@ -1,15 +1,15 @@
-use super::{Proposer, Acceptor, Learner};
 use super::common::*;
+use super::{Acceptor, Learner, Proposer};
 use errors::*;
 use network::message;
 
 use rand;
 use rand::Rng;
-use std::collections::VecDeque;
-use std::time::Duration;
 use std::collections::HashSet;
-use std::hash::Hash;
+use std::collections::VecDeque;
 use std::fmt::Debug;
+use std::hash::Hash;
+use std::time::Duration;
 
 pub struct PaxosInstance<T> {
     node_id: NodeID,
@@ -21,13 +21,18 @@ pub struct PaxosInstance<T> {
     acceptor: Acceptor<T>,
     learner: Learner<T>,
     waiting_reply: HashSet<PaxosInstanceMessage<T>>,
-    value: Option<T>,  // TODO make the canonical copy only exists once (either in Instance, or the  three component)
+    value: Option<T>, // TODO make the canonical copy only exists once (either in Instance, or the  three component)
 }
 
 impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
-    pub fn new(node_id: NodeID, instance_id: InstanceID, cluster_size: usize, timeout: Duration) -> PaxosInstance<T> {
+    pub fn new(
+        node_id: NodeID,
+        instance_id: InstanceID,
+        cluster_size: usize,
+        timeout: Duration,
+    ) -> PaxosInstance<T> {
         PaxosInstance {
-            node_id: node_id.clone(),  // FIXME remove clone()
+            node_id: node_id.clone(), // FIXME remove clone()
             instance_id,
             timeout,
             messages_to_send: VecDeque::new(),
@@ -35,7 +40,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
             acceptor: Acceptor::new(instance_id, node_id.clone()),
             learner: Learner::new(instance_id, node_id.clone(), cluster_size),
             waiting_reply: HashSet::new(),
-            value: None
+            value: None,
         }
     }
 
@@ -44,19 +49,22 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         collector.append(&mut self.messages_to_send);
     }
 
-    fn send_message(&mut self, message: PaxosInstanceMessage<T>, target: message::MessageTarget,
-                    timeout: Option<Duration>)
-    {
+    fn send_message(
+        &mut self,
+        message: PaxosInstanceMessage<T>,
+        target: message::MessageTarget,
+        timeout: Option<Duration>,
+    ) {
         if timeout.is_some() {
             self.waiting_reply.insert(message.clone());
         }
         self.messages_to_send.push_back(message::MessageInfo {
             payload: message::MessagePayload::PaxosMessage(PaxosMessage {
                 instance_id: self.instance_id,
-                message: message
+                message: message,
             }),
             target,
-            timeout
+            timeout,
         });
     }
 
@@ -68,7 +76,7 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
 
     pub fn start_proposing(&mut self, value: T) {
         self.proposer.set_value(value);
-        let timeout = self.timeout;  // need NLL
+        let timeout = self.timeout; // need NLL
         self.do_prepare(timeout);
     }
 
@@ -76,13 +84,13 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
         self.value.as_ref()
     }
 
-//    pub fn start_recovery(&mut self) {
-//        let msg = PaxosInstanceMessage::Recovery(RecoveryMessage {
-//            node_id: self.node_id.clone()
-//        });
-//        let timeout = Some(self.timeout);
-//        self.send_message(msg, message::MessageTarget::Broadcast, timeout);
-//    }
+    //    pub fn start_recovery(&mut self) {
+    //        let msg = PaxosInstanceMessage::Recovery(RecoveryMessage {
+    //            node_id: self.node_id.clone()
+    //        });
+    //        let timeout = Some(self.timeout);
+    //        self.send_message(msg, message::MessageTarget::Broadcast, timeout);
+    //    }
 
     fn do_prepare(&mut self, timeout: Duration) {
         let msg = PaxosInstanceMessage::Prepare(self.proposer.prepare());
@@ -90,7 +98,8 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
     }
 
     /// Returns `Some` if this is the first time the learner learns the value.
-    pub fn receive_message(&mut self, message: &PaxosInstanceMessage<T>) -> Option<T> {  // FIXME should return Option<&T>
+    pub fn receive_message(&mut self, message: &PaxosInstanceMessage<T>) -> Option<T> {
+        // FIXME should return Option<&T>
         match *message {
             PaxosInstanceMessage::Prepare(ref prepare) => {
                 self.proposer.observe_proposal(&prepare.proposal_id);
@@ -99,36 +108,38 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                     let target = message::MessageTarget::Node(prepare.proposer_id.clone());
                     self.send_message(msg, target, None);
                 }
-            },
+            }
             PaxosInstanceMessage::Promise(ref promise) => {
                 if let Some(m) = self.proposer.receive_promise(promise) {
                     // if got Promise from the majority, clear the Prepare timeout
                     self.waiting_reply.retain(|msg| match *msg {
-                        PaxosInstanceMessage::Prepare(ref prepare) =>
-                            m.proposal_id != prepare.proposal_id,
-                        _ => true
+                        PaxosInstanceMessage::Prepare(ref prepare) => {
+                            m.proposal_id != prepare.proposal_id
+                        }
+                        _ => true,
                     });
 
                     let msg = PaxosInstanceMessage::Propose(m);
                     let timeout = Some(self.timeout);
                     self.send_message(msg, message::MessageTarget::Broadcast, timeout);
                 }
-            },
+            }
             PaxosInstanceMessage::Propose(ref propose) => {
                 self.proposer.observe_proposal(&propose.proposal_id);
                 if let Some(m) = self.acceptor.receive_propose(propose) {
                     let msg = PaxosInstanceMessage::Accepted(m);
                     self.send_message(msg, message::MessageTarget::Broadcast, None);
                 }
-            },
+            }
             PaxosInstanceMessage::Accepted(ref accepted) => {
                 self.proposer.observe_proposal(&accepted.proposal_id);
                 if let Some(m) = self.learner.receive_accepted(accepted) {
                     // if got Accepted from the majority, clear the Promise timeout
                     self.waiting_reply.retain(|msg| match *msg {
-                        PaxosInstanceMessage::Propose(ref propose) =>
-                            propose.proposal_id != accepted.proposal_id,
-                        _ => true
+                        PaxosInstanceMessage::Propose(ref propose) => {
+                            propose.proposal_id != accepted.proposal_id
+                        }
+                        _ => true,
                     });
 
                     if let Some(v) = self.acceptor.value() {
@@ -144,52 +155,63 @@ impl<T: Clone + Hash + Eq + Debug> PaxosInstance<T> {
                         self.send_message(msg, message::MessageTarget::Broadcast, timeout);
                     }
                 }
-            },
+            }
             PaxosInstanceMessage::Learn(ref learn) => {
                 if let Some(m) = self.learner.receive_learn(learn) {
                     let msg = PaxosInstanceMessage::Value(m);
-                    self.send_message(msg, message::MessageTarget::Node(learn.learner_id.clone()), None);
+                    self.send_message(
+                        msg,
+                        message::MessageTarget::Node(learn.learner_id.clone()),
+                        None,
+                    );
                 }
-            },
+            }
             PaxosInstanceMessage::Value(ref value) => {
                 // if got Value from any node, clear all the Learn timeout
                 self.waiting_reply.retain(|msg| match *msg {
                     PaxosInstanceMessage::Learn(_) => false,
-                    _ => true
+                    _ => true,
                 });
 
                 self.value = Some(value.chosen_value.clone());
                 self.acceptor.set_reached_consensus();
                 return self.learner.receive_value(value);
-            },
-//            PaxosInstanceMessage::Recovery(ref recovery) => {
-//                if let Some(v) = self.value.clone() {  // FIXME clone()
-//                    let msg = PaxosInstanceMessage::Consensus(ConsensusMessage {
-//                        node_id: self.node_id.clone(),
-//                        proposal_id: self.acceptor.highest_accepted_proposal_id(),
-//                        value: v,
-//                    });
-//                    self.send_message(msg, message::MessageTarget::Node(recovery.node_id.clone()), None);
-//                }
-//            },
-//            PaxosInstanceMessage::Consensus(ref consensus) => {
-//                if self.value.is_none() {
-//                    self.value = Some(consensus.value.clone());
-//                    self.proposer.receive_consensus(consensus);
-//                    self.acceptor.receive_consensus(consensus);
-//                    self.learner.receive_consensus(consensus);
-//                    return self.value.clone();
-//                }
-//            }
+            }
+            //            PaxosInstanceMessage::Recovery(ref recovery) => {
+            //                if let Some(v) = self.value.clone() {  // FIXME clone()
+            //                    let msg = PaxosInstanceMessage::Consensus(ConsensusMessage {
+            //                        node_id: self.node_id.clone(),
+            //                        proposal_id: self.acceptor.highest_accepted_proposal_id(),
+            //                        value: v,
+            //                    });
+            //                    self.send_message(msg, message::MessageTarget::Node(recovery.node_id.clone()), None);
+            //                }
+            //            },
+            //            PaxosInstanceMessage::Consensus(ref consensus) => {
+            //                if self.value.is_none() {
+            //                    self.value = Some(consensus.value.clone());
+            //                    self.proposer.receive_consensus(consensus);
+            //                    self.acceptor.receive_consensus(consensus);
+            //                    self.learner.receive_consensus(consensus);
+            //                    return self.value.clone();
+            //                }
+            //            }
         }
         None
     }
 
-    pub fn on_timeout(&mut self, message: PaxosInstanceMessage<T>, timeout: Duration) -> Result<()> {
+    pub fn on_timeout(
+        &mut self,
+        message: PaxosInstanceMessage<T>,
+        timeout: Duration,
+    ) -> Result<()> {
         if !self.waiting_reply.remove(&message) {
             return Ok(());
         }
-        debug!("instance {} timeout {:?} {:?}", self.instance_id, timeout, message);
+        debug!(
+            "instance {} timeout {:?} {:?}",
+            self.instance_id, timeout, message
+        );
         let new_timeout = self.backoff_timeout(timeout);
         match message {
             PaxosInstanceMessage::Prepare(..) |
