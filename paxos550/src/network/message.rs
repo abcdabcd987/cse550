@@ -1,5 +1,5 @@
-use paxos;
 use locker;
+use paxos;
 use std::time::Duration;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

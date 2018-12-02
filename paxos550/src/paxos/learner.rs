@@ -22,7 +22,7 @@ impl<T: Clone> Learner<T> {
             proposal_accept_count: HashMap::new(),
             acceptor_highest_proposal_id: HashMap::new(),
             chosen_proposal_id,
-            chosen_value: None
+            chosen_value: None,
         }
     }
 
@@ -37,8 +37,12 @@ impl<T: Clone> Learner<T> {
                 return None;
             }
         }
-        self.acceptor_highest_proposal_id.insert(accepted.acceptor_id.clone(), accepted.proposal_id.clone());
-        let count = self.proposal_accept_count.entry(accepted.proposal_id.clone()).or_insert(0);
+        self.acceptor_highest_proposal_id
+            .insert(accepted.acceptor_id.clone(), accepted.proposal_id.clone());
+        let count = self
+            .proposal_accept_count
+            .entry(accepted.proposal_id.clone())
+            .or_insert(0);
         *count += 1;
         if *count == self.majority_size {
             self.chosen_proposal_id = accepted.proposal_id.clone();
@@ -64,7 +68,7 @@ impl<T: Clone> Learner<T> {
         self.chosen_value.as_ref().map(|v| ValueMessage {
             learner_id: self.learner_id.clone(),
             chosen_proposal_id: self.chosen_proposal_id.clone(),
-            chosen_value: v.clone()
+            chosen_value: v.clone(),
         })
     }
 
@@ -73,7 +77,8 @@ impl<T: Clone> Learner<T> {
     }
 
     /// Returns `Some` if this is the first time the learner learns the value.
-    pub fn receive_value(&mut self, value: &ValueMessage<T>) -> Option<T> {  // FIXME should be Option<&T>
+    pub fn receive_value(&mut self, value: &ValueMessage<T>) -> Option<T> {
+        // FIXME should be Option<&T>
         if self.chosen_value.is_some() {
             None
         } else {
@@ -82,8 +87,8 @@ impl<T: Clone> Learner<T> {
         }
     }
 
-//    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
-//        self.chosen_proposal_id = consensus.proposal_id.clone();
-//        self.chosen_value = Some(consensus.value.clone());
-//    }
+    //    pub fn receive_consensus(&mut self, consensus: &ConsensusMessage<T>) {
+    //        self.chosen_proposal_id = consensus.proposal_id.clone();
+    //        self.chosen_value = Some(consensus.value.clone());
+    //    }
 }

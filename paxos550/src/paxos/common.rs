@@ -1,6 +1,6 @@
 use rand;
 
-pub type NodeID = String;  // TODO: maybe consider &str?
+pub type NodeID = String; // TODO: maybe consider &str?
 pub type InstanceID = usize;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -65,8 +65,8 @@ pub enum PaxosInstanceMessage<T> {
     Accepted(AcceptedMessage),
     Learn(LearnMessage),
     Value(ValueMessage<T>),
-//    Recovery(RecoveryMessage),
-//    Consensus(ConsensusMessage<T>),
+    //    Recovery(RecoveryMessage),
+    //    Consensus(ConsensusMessage<T>),
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]

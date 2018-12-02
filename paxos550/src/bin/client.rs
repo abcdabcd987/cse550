@@ -1,16 +1,18 @@
-#[macro_use] extern crate clap;
-extern crate serde_yaml;
+#[macro_use]
+extern crate clap;
 extern crate rand;
-#[macro_use] extern crate log;
+extern crate serde_yaml;
+#[macro_use]
+extern crate log;
 extern crate env_logger;
-extern crate rustyline;
 extern crate paxos550;
+extern crate rustyline;
 
+use paxos550::locker::{LogEntry, Operation};
 use paxos550::message::*;
 use paxos550::paxos::NodeID;
-use paxos550::locker::{Operation, LogEntry};
 
-use clap::{Arg, App};
+use clap::{App, Arg};
 use rand::Rng;
 use rustyline::Editor;
 
@@ -19,13 +21,15 @@ use std::net::SocketAddr;
 use std::net::UdpSocket;
 
 fn print_usage() {
-    println!(r#"USAGE:
+    println!(
+        r#"USAGE:
     LOCK <key> [server]           Request to lock <key>
     UNLOCK <key> [server]         Request to unlock <key>
     LOG [server]                  Query the log applied by the state machine
     LOCKS [server]                Query what are locked
     TOTAL [server]                Query the number of paxos instances
-    "#);
+    "#
+    );
 }
 
 fn main() {
@@ -37,17 +41,21 @@ fn main() {
         .version(crate_version!())
         .author(crate_authors!())
         .about("Starts a interactive lock service client.")
-        .arg(Arg::with_name("id")
-            .long("id")
-            .help("Unique client name")
-            .required(true)
-            .takes_value(true))
-        .arg(Arg::with_name("server")
-            .long("server")
-            .help("Server nodes in `id=addr` format. e.g. node1=127.0.0.1:9001")
-            .required(true)
-            .takes_value(true)
-            .multiple(true))
+        .arg(
+            Arg::with_name("id")
+                .long("id")
+                .help("Unique client name")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("server")
+                .long("server")
+                .help("Server nodes in `id=addr` format. e.g. node1=127.0.0.1:9001")
+                .required(true)
+                .takes_value(true)
+                .multiple(true),
+        )
         .get_matches();
 
     let node_id = matches.value_of("id").unwrap();
@@ -55,7 +63,10 @@ fn main() {
     for server in matches.values_of("server").unwrap() {
         let split: Vec<&str> = server.split('=').collect();
         assert_eq!(split.len(), 2);
-        servers.insert(String::from(split[0]), split[1].parse::<SocketAddr>().unwrap());
+        servers.insert(
+            String::from(split[0]),
+            split[1].parse::<SocketAddr>().unwrap(),
+        );
     }
     let servers_vec: Vec<_> = servers.iter().collect();
 
@@ -92,13 +103,13 @@ fn main() {
                 None => {
                     println!("cannot find server {}", name);
                     return false;
-                },
+                }
                 Some(addr) => {
                     info!("sent to {}: {:?}", addr, msg);
                     if let Err(e) = socket.send_to(&data, addr) {
                         println!("error: {}", e);
                     }
-                },
+                }
             }
             return true;
         };
@@ -110,10 +121,10 @@ fn main() {
                     println!("usage: LOCK <key> [server]");
                     continue;
                 };
-                let msg: MessagePayload<Operation> = MessagePayload::LockerMessage(
-                    Operation::Lock(key.into(), node_id.into()));
+                let msg: MessagePayload<Operation> =
+                    MessagePayload::LockerMessage(Operation::Lock(key.into(), node_id.into()));
                 send(msg, args.get(2));
-            },
+            }
             "UNLOCK" => {
                 let key = if let Some(&key) = args.get(1) {
                     key
@@ -121,10 +132,10 @@ fn main() {
                     println!("usage: UNLOCK <key> [server]");
                     continue;
                 };
-                let msg: MessagePayload<Operation> = MessagePayload::LockerMessage(
-                    Operation::Unlock(key.into(), node_id.into()));
+                let msg: MessagePayload<Operation> =
+                    MessagePayload::LockerMessage(Operation::Unlock(key.into(), node_id.into()));
                 send(msg, args.get(2));
-            },
+            }
             "LOG" => {
                 let msg: MessagePayload<Operation> = MessagePayload::PrintLog;
                 if !send(msg, args.get(1)) {
@@ -144,14 +155,14 @@ fn main() {
                                 println!("({} LogEntry in total)", res.len());
                                 break;
                             }
-                        },
+                        }
                         Err(e) => {
                             println!("error: {}", e);
                             break;
-                        },
+                        }
                     }
                 }
-            },
+            }
             "LOCKS" => {
                 let msg: MessagePayload<Operation> = MessagePayload::PrintLocks;
                 if !send(msg, args.get(1)) {
@@ -162,7 +173,8 @@ fn main() {
                     match socket.recv_from(&mut buf[len..]) {
                         Ok((size, addr)) => {
                             len += size;
-                            let data: Result<HashMap<String, NodeID>, _> = serde_yaml::from_slice(&buf[..len]);
+                            let data: Result<HashMap<String, NodeID>, _> =
+                                serde_yaml::from_slice(&buf[..len]);
                             if let Ok(res) = data {
                                 println!("Locks from {}:", addr);
                                 for (key, node) in &res {
@@ -170,14 +182,14 @@ fn main() {
                                 }
                                 break;
                             }
-                        },
+                        }
                         Err(e) => {
                             println!("error: {}", e);
                             break;
-                        },
+                        }
                     }
                 }
-            },
+            }
             "TOTAL" => {
                 let msg: MessagePayload<Operation> = MessagePayload::PrintTotalInstances;
                 if !send(msg, args.get(1)) {
@@ -193,17 +205,17 @@ fn main() {
                                 println!("Total instances from {}: {}", addr, res);
                                 break;
                             }
-                        },
+                        }
                         Err(e) => {
                             println!("error: {}", e);
                             break;
-                        },
+                        }
                     }
                 }
-            },
+            }
             "HELP" => {
                 print_usage();
-            },
+            }
             _ => {
                 println!("unknown command: {:?}", args);
             }

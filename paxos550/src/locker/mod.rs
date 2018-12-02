@@ -6,7 +6,7 @@ use paxos::NodeID;
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
 pub enum Operation {
     Lock(String, NodeID),
-    Unlock(String, NodeID)
+    Unlock(String, NodeID),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
@@ -17,14 +17,14 @@ pub struct LogEntry {
 
 pub struct Locker {
     locks: HashMap<String, NodeID>,
-    log: Vec<LogEntry>
+    log: Vec<LogEntry>,
 }
 
 impl Locker {
     pub fn new() -> Locker {
         Locker {
             locks: HashMap::new(),
-            log: Vec::new()
+            log: Vec::new(),
         }
     }
 
@@ -36,18 +36,21 @@ impl Locker {
                     self.locks.insert(key.clone(), value.clone());
                     valid = true;
                 }
-            },
+            }
             Operation::Unlock(ref key, ref node) => {
                 match self.locks.get(key) {
                     Some(owner) if owner == node => valid = true,
-                    _ => ()
+                    _ => (),
                 }
                 if valid {
-                    self.locks.remove(key);  // FIXME ugly.
+                    self.locks.remove(key); // FIXME ugly.
                 }
-            },
+            }
         }
-        self.log.push(LogEntry { op: op.clone(), valid });
+        self.log.push(LogEntry {
+            op: op.clone(),
+            valid,
+        });
     }
 
     pub fn log(&self) -> &Vec<LogEntry> {
